@@ -2,6 +2,7 @@ import sys
 import getopt
 import struct
 import time
+import math
 from util import *
 
 '''
@@ -46,6 +47,10 @@ def parsing(input_file, is_print, stop_list):
     start_parse = False
     is_content = False
     # open the source file and read the content line by line
+
+    total_doc_length = 0
+    doc_weight = 0
+
     with open(input_file, 'r') as f:
 
         # loop each reading line
@@ -55,7 +60,8 @@ def parsing(input_file, is_print, stop_list):
 
                 if '<DOCNO>' in line:
 
-                    map_file.write(line.strip().split()[1] + '\n')
+                    doc_name = line.strip().split()[1]
+                    map_file.write(doc_name + ' ')
                     doc_quantity += 1
                     start_parse = True
 
@@ -66,6 +72,10 @@ def parsing(input_file, is_print, stop_list):
             if start_parse:
 
                 if '</TEXT>' in line:
+
+                    current_doc_length = len(content)
+
+                    total_doc_length += current_doc_length
 
                     content = remove_punctuation(content).lower().split()
 
@@ -85,6 +95,8 @@ def parsing(input_file, is_print, stop_list):
                                 continue
 
                         count = content.count(term)
+
+                        doc_weight += pow(1 + math.log(count), 2)
                         indicator = term[0]
                         length = len(term)
                         visited = False
@@ -122,6 +134,9 @@ def parsing(input_file, is_print, stop_list):
                             if is_print:
                                 print(term)
 
+                    map_file.write(str(current_doc_length) + ' ' + str(math.sqrt(doc_weight)) + '\n')
+
+                    doc_weight = 0
                     is_content = False
                     start_parse = False
                     content = ''
@@ -171,8 +186,13 @@ def parsing(input_file, is_print, stop_list):
             # invlists_file.write(fmt + ' ')
             # invlists_file.write('R')
 
-    map_file.write(str(doc_quantity))
+    map_file.write(str(doc_quantity) + '\n')
+    avg_doc_length = total_doc_length / doc_quantity
+    map_file.write(str(avg_doc_length))
     lexicon_file.write(str(lexicon_table_len))
+
+
+
     lexicon_file.close()
     invlists_file.close()
     map_file.close()
@@ -243,6 +263,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     main(sys.argv[1:])
-    # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))

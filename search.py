@@ -2,12 +2,18 @@ import getopt
 import sys
 import struct
 from util import *
+import time
 
 '''
 The search function, used to search the terms one by one
 '''
 def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist, search_terms):
 
+    model = model
+    query_label = query_label
+    num_results = num_results
+
+    start_time = int(round(time.time() * 1000))
     hash_table_length = 0
     stop_hash_table = None
 
@@ -47,71 +53,77 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
             stop_hash_table.add_node(stop_word, 0, False)
 
     accumulator = HashTable(0)
-    accumulator.length = 1000
+    accumulator.length = 100
 
     # loop over each searched term
-    for term in search_terms:
+    if model == '-BM25':
 
-        if stoplist is not None:
+        for term in search_terms:
 
-            index = len(term) % hash_table_length
+            if stoplist is not None:
 
-            stop_hash_table.check_table(term, stop_hash_table.table[index])
+                index = len(term) % hash_table_length
 
-            if stop_hash_table.check_result is not None:
+                stop_hash_table.check_table(term, stop_hash_table.table[index])
 
-                continue
-
-        # calculate the index of term in lexicon hash table
-        index = len(term) % lexicon_table_length
-
-        # check hash table and find out if it is in the table
-        lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
-
-        if lexicon_hash_table.check_result is None:
-
-            print(term + ' cannot be found.')
-
-        else:
-
-            # if the term is found, print it out
-            print('\n' + term)
-
-            # here get the term's index in lexicon, times 4 to get its real location in binary file
-            index_to_inv = int(lexicon_hash_table.check_result) * 4
-
-            # open invlists file
-            inv_file = open(invlists, 'rb')
-
-            inv_file.seek(index_to_inv)
-
-            # unpack the packed data in the binary file
-            quantity = struct.unpack('I', inv_file.read(4))[0]
-
-            print(quantity)
-
-            # how many numbers need to read
-            next_bytes = quantity * 2
-
-            fmt = str(next_bytes) + 'I'
-
-            # unpack the following appear doc info, * 4 means the real bytes need to read
-            invlist = struct.unpack(fmt, inv_file.read(next_bytes * 4))
-
-            doc_num = None
-
-            for index in range(len(invlist)):
-
-                if index % 2 == 0:
-
-                    # use doc index to find doc name from doc hash table
-                    doc_num = doc_hash_table.table[invlist[index]].index[0]
+                if stop_hash_table.check_result is not None:
 
                     continue
 
-                else:
+            # calculate the index of term in lexicon hash table
+            index = len(term) % lexicon_table_length
 
-                    print(doc_num + ' ' + str(invlist[index]))
+            # check hash table and find out if it is in the table
+            lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
+
+            if lexicon_hash_table.check_result is None:
+
+                print(term + ' cannot be found.')
+
+            else:
+
+                # if the term is found, print it out
+                # print('\n' + term)
+
+                # here get the term's index in lexicon, times 4 to get its real location in binary file
+                index_to_inv = int(lexicon_hash_table.check_result) * 4
+
+                # open invlists file
+                inv_file = open(invlists, 'rb')
+
+                inv_file.seek(index_to_inv)
+
+                # unpack the packed data in the binary file
+                quantity = struct.unpack('I', inv_file.read(4))[0]
+
+                print(quantity)
+
+                # how many numbers need to read
+                next_bytes = quantity * 2
+
+                fmt = str(next_bytes) + 'I'
+
+                # unpack the following appear doc info, * 4 means the real bytes need to read
+                invlist = struct.unpack(fmt, inv_file.read(next_bytes * 4))
+
+                doc_num = None
+
+                for index in range(len(invlist)):
+
+                    if index % 2 == 0:
+
+                        # use doc index to find doc name from doc hash table
+                        doc_num = doc_hash_table.table[invlist[index]].index[0]
+
+                        continue
+
+                    else:
+
+                        print(doc_num + ' ' + str(invlist[index]))
+
+    elapsed_time = int(round(time.time() * 1000)) - start_time
+
+    print('Running time: ' + str(elapsed_time) + ' ms')
 
 # read the document and convert it to list
 def doc2list(doc):

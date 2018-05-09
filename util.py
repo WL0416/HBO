@@ -138,6 +138,7 @@ class HashTable:
 
                     node = node.next_node
 
+    # this function is used for
     def update_frequency(self, content, node):
 
         while True:
@@ -146,6 +147,7 @@ class HashTable:
 
                 node.frequency += 1
                 break
+
             else:
                 node = node.next_node
 
