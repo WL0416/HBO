@@ -76,7 +76,7 @@ class Node:
         self.next_node = next_node
         self.index = index
         self.last_node = self
-        self.frequency = 1
+        self.BM25 = 0
 
 class HashTable:
 
@@ -138,20 +138,48 @@ class HashTable:
 
                     node = node.next_node
 
-    # this function is used for
-    def update_frequency(self, content, node):
+    def add_BM25_node(self, o_index, word, BM25):
+
+        index = int(o_index) % self.length
+
+        if self.table[index].content is None:
+
+            self.table[index].content = word
+            self.table[index].index = o_index
+            self.table[index].BM25 = BM25
+
+        else:
+
+            node = Node(word, None, o_index)
+            node.BM25 = BM25
+            self.table[index].last_node.next_node = node
+            self.table[index].last_node = node
+
+    def update_BM25_node(self, word, node, BM25):
 
         while True:
 
-            if node.content == content:
+            if node.content == word:
 
-                node.frequency += 1
+                node.BM25 += BM25
+
                 break
 
             else:
+
                 node = node.next_node
 
-    def empty_hash_table(self):
 
-        self.table = []
-        self.check_result = None
+class minHeap:
+
+    def __init__(self):
+
+        self.heap = []
+        self.heap_size = 0
+
+    def add_node(self, doc_name, doc_BM25):
+
+        if len(self.heap) == 0:
+
+            self.heap.append((doc_name, doc_BM25))
+

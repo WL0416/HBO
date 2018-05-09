@@ -3,6 +3,7 @@ import sys
 import struct
 from util import *
 import time
+import math
 
 '''
 The search function, used to search the terms one by one
@@ -12,6 +13,7 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
     model = model
     query_label = query_label
     num_results = num_results
+    bm25_table_length = 100
 
     start_time = int(round(time.time() * 1000))
     hash_table_length = 0
@@ -26,9 +28,15 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
     lexicon_hash_table = HashTable(lexicon_table_length)
 
     # create doc map hash table
+    # get the average of document length and pop it out from the list
+    avg_doc_length = int(doc_list[len(doc_list)-1][0])
+    doc_list.pop()
+    # get the length of table and pop it out from the list
     doc_table_length = int(doc_list[len(doc_list)-1][0])
     doc_list.pop()
     doc_hash_table = HashTable(doc_table_length)
+
+    bm25_hash_table = HashTable(bm25_table_length)
 
     # construct each hash table
     for index in range(len(lexicon_list)):
@@ -52,23 +60,31 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
             stop_hash_table.add_node(stop_word, 0, False)
 
-    accumulator = HashTable(0)
-    accumulator.length = 100
+    total_doc = 0
+
+    filtered_terms = []
+
+    if stoplist is not None:
+
+        for term in search_terms:
+
+            index = len(term) % hash_table_length
+
+            stop_hash_table.check_table(term, stop_hash_table.table[index])
+
+            if stop_hash_table.check_result is None:
+
+                filtered_terms.append(term)
+
+        search_terms = filtered_terms
 
     # loop over each searched term
     if model == '-BM25':
 
+        # open invlists file
+        inv_file = open(invlists, 'rb')
+
         for term in search_terms:
-
-            if stoplist is not None:
-
-                index = len(term) % hash_table_length
-
-                stop_hash_table.check_table(term, stop_hash_table.table[index])
-
-                if stop_hash_table.check_result is not None:
-
-                    continue
 
             # calculate the index of term in lexicon hash table
             index = len(term) % lexicon_table_length
@@ -88,15 +104,39 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                 # here get the term's index in lexicon, times 4 to get its real location in binary file
                 index_to_inv = int(lexicon_hash_table.check_result) * 4
 
-                # open invlists file
-                inv_file = open(invlists, 'rb')
-
                 inv_file.seek(index_to_inv)
 
                 # unpack the packed data in the binary file
                 quantity = struct.unpack('I', inv_file.read(4))[0]
 
-                print(quantity)
+                # print(quantity)
+
+                total_doc += quantity
+
+        for term in search_terms:
+
+            # calculate the index of term in lexicon hash table
+            index = len(term) % lexicon_table_length
+
+            # check hash table and find out if it is in the table
+            lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
+
+            if lexicon_hash_table.check_result is None:
+
+                print(term + ' cannot be found.')
+
+            else:
+
+                # if the term is found, print it out
+                # print('\n' + term)
+
+                # here get the term's index in lexicon, times 4 to get its real location in binary file
+                index_to_inv = int(lexicon_hash_table.check_result) * 4
+
+                inv_file.seek(index_to_inv)
+
+                # unpack the packed data in the binary file
+                quantity = struct.unpack('I', inv_file.read(4))[0]
 
                 # how many numbers need to read
                 next_bytes = quantity * 2
@@ -106,20 +146,38 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                 # unpack the following appear doc info, * 4 means the real bytes need to read
                 invlist = struct.unpack(fmt, inv_file.read(next_bytes * 4))
 
-                doc_num = None
-
                 for index in range(len(invlist)):
 
                     if index % 2 == 0:
 
                         # use doc index to find doc name from doc hash table
-                        doc_num = doc_hash_table.table[invlist[index]].index[0]
+                        doc_index = invlist[index]
+                        doc_ft = invlist[index + 1]
+                        doc_num = doc_hash_table.table[doc_index].index[0]
+                        doc_L = int(doc_hash_table.table[doc_index].index[1])
+
+                        bm25_value = bm25_calculator(total_doc, quantity, doc_ft, doc_L, avg_doc_length)
+
+                        bm25_index = doc_index % bm25_table_length
+
+                        bm25_hash_table.check_table(doc_num, bm25_hash_table.table[bm25_index])
+
+                        if bm25_hash_table.check_result:
+
+                            bm25_hash_table.update_BM25_node(doc_num, bm25_hash_table.table[bm25_index], bm25_value)
+
+                        else:
+
+                            bm25_hash_table.add_BM25_node(doc_index, doc_num, bm25_value)
 
                         continue
 
                     else:
 
-                        print(doc_num + ' ' + str(invlist[index]))
+                        pass
+                        # print(str(query_label) + ' ' + doc_num + ' ' + str(invlist[index]))
+
+    print(bm25_hash_table.table[8].content, bm25_hash_table.table[8].BM25)
 
     elapsed_time = int(round(time.time() * 1000)) - start_time
 
@@ -139,6 +197,19 @@ def doc2list(doc):
             doc_list.append(term_list)
 
     return doc_list
+
+
+def bm25_calculator(N, Ft, Fdt, Ld, AL):
+
+    k1 = 1.2
+    b = 0.75
+
+    K = k1 * ((1 - b) + (b * Ld) / AL)
+
+    bm25 = math.log(((N - Ft + 0.5) / (Ft + 0.5))) * (((k1 + 1) * Fdt) / (K + Fdt))
+
+    return round(bm25, 3)
+
 
 
 # the argument must be fill in the command
