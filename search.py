@@ -60,8 +60,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
             stop_hash_table.add_node(stop_word, 0, False)
 
-    total_doc = 0
-
     filtered_terms = []
 
     if stoplist is not None:
@@ -113,8 +111,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
                 # print(quantity)
 
-                total_doc += quantity
-
         # print('total docs ', total_doc)
 
         for term in search_terms:
@@ -160,7 +156,7 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                         doc_num = doc_hash_table.table[doc_index].index[0]
                         doc_L = int(doc_hash_table.table[doc_index].index[1])
 
-                        bm25_value = bm25_calculator(total_doc, quantity, doc_ft, doc_L, avg_doc_length)
+                        bm25_value = bm25_calculator(doc_table_length, quantity, doc_ft, doc_L, avg_doc_length)
 
                         bm25_index = doc_index % bm25_table_length
 
@@ -213,7 +209,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
     #     minHeap.heap.append((str(e), e))
     #     minHeap.minHeapify(minHeap.heap[len(minHeap.heap) - 1])
 
-
     result = []
 
     while len(minHeap.heap) > 0:
@@ -238,6 +233,8 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
     # adjust the order of result from greater to lower
     result.reverse()
+
+
 
     for index in range(len(result)):
 
@@ -273,8 +270,6 @@ def bm25_calculator(N, Ft, Fdt, Ld, AL):
     bm25 = math.log(((N - Ft + 0.5) / (Ft + 0.5))) * (((k1 + 1) * Fdt) / (K + Fdt))
 
     return round(bm25, 3)
-
-
 
 # the argument must be fill in the command
 def main(argv):
