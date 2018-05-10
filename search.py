@@ -84,6 +84,8 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
         # open invlists file
         inv_file = open(invlists, 'rb')
 
+        # print('search terms ', search_terms)
+
         for term in search_terms:
 
             # calculate the index of term in lexicon hash table
@@ -112,6 +114,8 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                 # print(quantity)
 
                 total_doc += quantity
+
+        # print('total docs ', total_doc)
 
         for term in search_terms:
 
@@ -177,7 +181,67 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                         pass
                         # print(str(query_label) + ' ' + doc_num + ' ' + str(invlist[index]))
 
-    print(bm25_hash_table.table[8].content, bm25_hash_table.table[8].BM25)
+    minHeap = MinHeap()
+
+    for node in bm25_hash_table.table:
+
+        if node.content is None:
+
+            continue
+
+        else:
+
+            while True:
+
+                minHeap.heap.append((node.content, node.BM25))
+                minHeap.minHeapify(minHeap.heap[len(minHeap.heap)-1])
+
+                if node.next_node is not None:
+
+                    node = node.next_node
+
+                    continue
+
+                else:
+
+                    break
+
+    # test = [1,5,7,32,14,25,2323,43,68,0,889]
+    #
+    # for e in test:
+    #
+    #     minHeap.heap.append((str(e), e))
+    #     minHeap.minHeapify(minHeap.heap[len(minHeap.heap) - 1])
+
+
+    result = []
+
+    while len(minHeap.heap) > 0:
+
+        # print('after', minHeap.heap)
+
+        if len(minHeap.heap) <= num_results:
+
+            result.append(minHeap.heap.pop(0))
+
+        else:
+
+            minHeap.heap.pop(0)
+
+        if len(minHeap.heap) > 1:
+
+            first_doc = minHeap.heap.pop()
+            minHeap.heap.insert(0, first_doc)
+
+            # print('before', minHeap.heap)
+            minHeap.minAdjust(0)
+
+    # adjust the order of result from greater to lower
+    result.reverse()
+
+    for index in range(len(result)):
+
+        print(str(query_label) + ' ' + result[index][0] + ' ' + str(index + 1) + ' ' + str(result[index][1]))
 
     elapsed_time = int(round(time.time() * 1000)) - start_time
 

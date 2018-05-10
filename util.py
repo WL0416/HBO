@@ -170,16 +170,51 @@ class HashTable:
                 node = node.next_node
 
 
-class minHeap:
+def swap(heap, i, j):
+
+    temp = heap[i]
+    heap[i] = heap[j]
+    heap[j] = temp
+
+
+class MinHeap:
 
     def __init__(self):
 
         self.heap = []
-        self.heap_size = 0
 
-    def add_node(self, doc_name, doc_BM25):
+    def minHeapify(self, last_doc):
 
-        if len(self.heap) == 0:
+        index = self.heap.index(last_doc)
 
-            self.heap.append((doc_name, doc_BM25))
+        if index != 0:
+
+            arg = (index + 1) % 2 + 1
+
+            parent_doc = self.heap[(index - arg) / 2]
+
+            if last_doc[1] < parent_doc[1]:
+
+                swap(self.heap, index, (index - arg) / 2)
+
+                self.minHeapify(self.heap[(index - arg) / 2])
+
+    def minAdjust(self, index):
+
+        left_index = index * 2 + 1
+        right_index = index * 2 + 2
+        min_index = index
+
+        if left_index < len(self.heap) and self.heap[left_index][1] < self.heap[min_index][1]:
+
+                min_index = left_index
+
+        if right_index < len(self.heap) and self.heap[right_index][1] < self.heap[min_index][1]:
+
+                min_index = right_index
+
+        if min_index != index:
+
+            swap(self.heap, index, min_index)
+            self.minAdjust(min_index)
 
