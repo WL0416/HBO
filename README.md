@@ -36,6 +36,18 @@ MMR {
     }
 }
 
-
+Reference
+Step-by-step MMR process
 http://www.cs.bilkent.edu.tr/~canf/CS533/hwSpring14/eightMinPresentations/handoutMMR.pdf
+
+Several methods to find similarity between 2 docs
+https://www.researchgate.net/post/How_to_find_semantic_similarity_between_two_documents
+
+Wiki - Vector space model for Documents
+https://en.wikipedia.org/wiki/Vector_space_model
+
+Python package to calculate vector similarity
+https://radimrehurek.com/gensim/similarities/docsim.html
+
+
 
