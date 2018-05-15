@@ -77,6 +77,7 @@ class Node:
         self.index = index
         self.last_node = self
         self.BM25 = 0
+        self.victors = []
 
 class HashTable:
 
@@ -138,7 +139,7 @@ class HashTable:
 
                     node = node.next_node
 
-    def add_BM25_node(self, o_index, word, BM25):
+    def add_BM25_node(self, o_index, word, BM25, doc_ft):
 
         index = int(o_index) % self.length
 
@@ -147,21 +148,25 @@ class HashTable:
             self.table[index].content = word
             self.table[index].index = o_index
             self.table[index].BM25 = BM25
+            self.table[index].victors.append(doc_ft)
 
         else:
 
             node = Node(word, None, o_index)
             node.BM25 = BM25
+            node.victors.append(doc_ft)
             self.table[index].last_node.next_node = node
             self.table[index].last_node = node
 
-    def update_BM25_node(self, word, node, BM25):
+    def update_BM25_node(self, word, node, BM25, doc_ft):
 
         while True:
 
             if node.content == word:
 
                 node.BM25 += BM25
+
+                node.victors.append(doc_ft)
 
                 break
 

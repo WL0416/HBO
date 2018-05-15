@@ -76,106 +76,103 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
         search_terms = filtered_terms
 
-    # loop over each searched term
-    if model == '-BM25':
+    # open invlists file
+    inv_file = open(invlists, 'rb')
 
-        # open invlists file
-        inv_file = open(invlists, 'rb')
+    # print('search terms ', search_terms)
 
-        # print('search terms ', search_terms)
+    for term in search_terms:
 
-        for term in search_terms:
+        # calculate the index of term in lexicon hash table
+        index = len(term) % lexicon_table_length
 
-            # calculate the index of term in lexicon hash table
-            index = len(term) % lexicon_table_length
+        # check hash table and find out if it is in the table
+        lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
 
-            # check hash table and find out if it is in the table
-            lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
+        if lexicon_hash_table.check_result is None:
 
-            if lexicon_hash_table.check_result is None:
+            print(term + ' cannot be found.')
 
-                print(term + ' cannot be found.')
+        else:
 
-            else:
+            # if the term is found, print it out
+            # print('\n' + term)
 
-                # if the term is found, print it out
-                # print('\n' + term)
+            # here get the term's index in lexicon, times 4 to get its real location in binary file
+            index_to_inv = int(lexicon_hash_table.check_result) * 4
 
-                # here get the term's index in lexicon, times 4 to get its real location in binary file
-                index_to_inv = int(lexicon_hash_table.check_result) * 4
+            inv_file.seek(index_to_inv)
 
-                inv_file.seek(index_to_inv)
+            # unpack the packed data in the binary file
+            quantity = struct.unpack('I', inv_file.read(4))[0]
 
-                # unpack the packed data in the binary file
-                quantity = struct.unpack('I', inv_file.read(4))[0]
+            # print(quantity)
 
-                # print(quantity)
+    # print('total docs ', total_doc)
 
-        # print('total docs ', total_doc)
+    for term in search_terms:
 
-        for term in search_terms:
+        # calculate the index of term in lexicon hash table
+        index = len(term) % lexicon_table_length
 
-            # calculate the index of term in lexicon hash table
-            index = len(term) % lexicon_table_length
+        # check hash table and find out if it is in the table
+        lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
 
-            # check hash table and find out if it is in the table
-            lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
+        if lexicon_hash_table.check_result is None:
 
-            if lexicon_hash_table.check_result is None:
+            print(term + ' cannot be found.')
 
-                print(term + ' cannot be found.')
+        else:
 
-            else:
+            # if the term is found, print it out
+            # print('\n' + term)
 
-                # if the term is found, print it out
-                # print('\n' + term)
+            # here get the term's index in lexicon, times 4 to get its real location in binary file
+            index_to_inv = int(lexicon_hash_table.check_result) * 4
 
-                # here get the term's index in lexicon, times 4 to get its real location in binary file
-                index_to_inv = int(lexicon_hash_table.check_result) * 4
+            inv_file.seek(index_to_inv)
 
-                inv_file.seek(index_to_inv)
+            # unpack the packed data in the binary file
+            quantity = struct.unpack('I', inv_file.read(4))[0]
 
-                # unpack the packed data in the binary file
-                quantity = struct.unpack('I', inv_file.read(4))[0]
+            # how many numbers need to read
+            next_bytes = quantity * 2
 
-                # how many numbers need to read
-                next_bytes = quantity * 2
+            fmt = str(next_bytes) + 'I'
 
-                fmt = str(next_bytes) + 'I'
+            # unpack the following appear doc info, * 4 means the real bytes need to read
+            invlist = struct.unpack(fmt, inv_file.read(next_bytes * 4))
 
-                # unpack the following appear doc info, * 4 means the real bytes need to read
-                invlist = struct.unpack(fmt, inv_file.read(next_bytes * 4))
+            for index in range(len(invlist)):
 
-                for index in range(len(invlist)):
+                if index % 2 == 0:
 
-                    if index % 2 == 0:
+                    # use doc index to find doc name from doc hash table
+                    doc_index = invlist[index]
+                    doc_ft = invlist[index + 1]
+                    doc_num = doc_hash_table.table[doc_index].index[0]
+                    doc_len = int(doc_hash_table.table[doc_index].index[1])
 
-                        # use doc index to find doc name from doc hash table
-                        doc_index = invlist[index]
-                        doc_ft = invlist[index + 1]
-                        doc_num = doc_hash_table.table[doc_index].index[0]
-                        doc_L = int(doc_hash_table.table[doc_index].index[1])
+                    bm25_value = bm25_similarity(doc_table_length, quantity, doc_ft, doc_len, avg_doc_length)
 
-                        bm25_value = bm25_calculator(doc_table_length, quantity, doc_ft, doc_L, avg_doc_length)
+                    bm25_index = doc_index % bm25_table_length
 
-                        bm25_index = doc_index % bm25_table_length
+                    bm25_hash_table.check_table(doc_num, bm25_hash_table.table[bm25_index])
 
-                        bm25_hash_table.check_table(doc_num, bm25_hash_table.table[bm25_index])
+                    if bm25_hash_table.check_result:
 
-                        if bm25_hash_table.check_result:
-
-                            bm25_hash_table.update_BM25_node(doc_num, bm25_hash_table.table[bm25_index], bm25_value)
-
-                        else:
-
-                            bm25_hash_table.add_BM25_node(doc_index, doc_num, bm25_value)
-
-                        continue
+                        bm25_hash_table.update_BM25_node(doc_num, bm25_hash_table.table[bm25_index], bm25_value, (term, doc_ft))
 
                     else:
 
-                        pass
-                        # print(str(query_label) + ' ' + doc_num + ' ' + str(invlist[index]))
+                        bm25_hash_table.add_BM25_node(doc_index, doc_num, bm25_value, (term, doc_ft))
+
+                    continue
+
+                else:
+
+                    pass
+                    # print(str(query_label) + ' ' + doc_num + ' ' + str(invlist[index]))
 
     minHeap = MinHeap()
 
@@ -189,7 +186,7 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
             while True:
 
-                minHeap.heap.append((node.content, node.BM25))
+                minHeap.heap.append((node.content, node.BM25, node.victors))
                 minHeap.minHeapify(minHeap.heap[len(minHeap.heap)-1])
 
                 if node.next_node is not None:
@@ -231,14 +228,20 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
             # print('before', minHeap.heap)
             minHeap.minAdjust(0)
 
+    print(result)
+
     # adjust the order of result from greater to lower
     result.reverse()
 
+    if model == '-BM25':
 
+        for index in range(len(result)):
 
-    for index in range(len(result)):
+            print(str(query_label) + ' ' + result[index][0] + ' ' + str(index + 1) + ' ' + str(result[index][1]))
 
-        print(str(query_label) + ' ' + result[index][0] + ' ' + str(index + 1) + ' ' + str(result[index][1]))
+    else:
+
+        print('new')
 
     elapsed_time = int(round(time.time() * 1000)) - start_time
 
@@ -260,7 +263,7 @@ def doc2list(doc):
     return doc_list
 
 
-def bm25_calculator(N, Ft, Fdt, Ld, AL):
+def bm25_similarity(N, Ft, Fdt, Ld, AL):
 
     k1 = 1.2
     b = 0.75
@@ -270,6 +273,11 @@ def bm25_calculator(N, Ft, Fdt, Ld, AL):
     bm25 = math.log(((N - Ft + 0.5) / (Ft + 0.5))) * (((k1 + 1) * Fdt) / (K + Fdt))
 
     return round(bm25, 3)
+
+
+def cosine_similarity(doc1, doc2):
+
+    return 0
 
 # the argument must be fill in the command
 def main(argv):
@@ -285,10 +293,11 @@ def main(argv):
 
     try:
 
-        if argv[0] == '-BM25':
+        if argv[0] == '-BM25' or argv[0] == '-MMR':
             pass
         else:
             print("Error: lack of model option.")
+            sys.exit(2)
 
         opts, argvs = getopt.getopt(argv[1:], "q:n:l:i:m:s:")
 
