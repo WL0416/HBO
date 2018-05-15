@@ -36,3 +36,6 @@ MMR {
     }
 }
 
+
+http://www.cs.bilkent.edu.tr/~canf/CS533/hwSpring14/eightMinPresentations/handoutMMR.pdf
+
