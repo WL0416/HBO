@@ -228,7 +228,7 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
             # print('before', minHeap.heap)
             minHeap.minAdjust(0)
 
-    print(result)
+    # print(result)
 
     # adjust the order of result from greater to lower
     result.reverse()
@@ -239,9 +239,48 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
             print(str(query_label) + ' ' + result[index][0] + ' ' + str(index + 1) + ' ' + str(result[index][1]))
 
-    else:
+    elif model == '-MMR':
 
-        print('new')
+        compare_docs = []
+        MMR_values = []
+        first_doc = result.pop(0)
+        final_result = [first_doc]
+        compared_docs = [first_doc]
+        MMR_print = []
+
+        while len(result) > 0:
+
+            compare_doc = result.pop(0)
+
+            compare_docs.append(compare_doc)
+
+            cos_similarity = max([cosine_similarity(compare_doc, doc) for doc in compared_docs])
+
+            MMR_value = 0.7 * compare_doc[1] - 0.7 * cos_similarity
+
+            MMR_values.append(MMR_value)
+
+        while len(MMR_values) > 0:
+
+            max_value = MMR_values[0]
+
+            for value in MMR_values:
+
+                if max_value < value:
+
+                    max_value = value
+
+            max_index = MMR_values.index(max_value)
+
+            MMR_print.append(MMR_values.pop(max_index))
+
+            final_result.append(compare_docs.pop(max_index))
+
+        for index in range(len(final_result)):
+
+            print(str(query_label) + ' ' + final_result[index][0] +
+                  ' ' + str(index + 1) + ' ' + str(final_result[index][1]) +
+                  ' ' + str(MMR_print[index-1] if index > 0 else 'N/A'))
 
     elapsed_time = int(round(time.time() * 1000)) - start_time
 
@@ -277,7 +316,83 @@ def bm25_similarity(N, Ft, Fdt, Ld, AL):
 
 def cosine_similarity(doc1, doc2):
 
-    return 0
+    terms = []
+    terms_in_doc1 = doc1[2]
+    terms_in_doc2 = doc2[2]
+
+    for term_doc in terms_in_doc1:
+
+        terms.append(term_doc[0])
+
+    for term_doc in terms_in_doc2:
+
+        if term_doc[0] in terms:
+
+            continue
+
+        else:
+
+            terms.append(term_doc[0])
+
+    total_tf_doc1 = float(sum([tf[1] for tf in terms_in_doc1]))
+    total_tf_doc2 = float(sum([tf[1] for tf in terms_in_doc2]))
+
+    tfidf_doc1 = []
+    tfidf_doc2 = []
+
+    # print(total_tf_doc1)
+    # print(total_tf_doc2)
+    # print(terms)
+
+    for term in terms:
+
+        D = 0
+        tf_doc1 = 0.0
+        tf_doc2 = 0.0
+
+        for term_doc in terms_in_doc1:
+
+            if term == term_doc[0]:
+
+                D += 1
+                tf_doc1 = term_doc[1]/total_tf_doc1
+                # print('doc1', tf_doc1)
+
+        for term_doc in terms_in_doc2:
+
+            if term == term_doc[0]:
+                D += 1
+                tf_doc2 = term_doc[1]/total_tf_doc2
+                # print('doc2', tf_doc2)
+
+        if D == 1:
+
+            idf = 0.301
+
+        else:
+
+            idf = 0
+
+        # print(idf)
+
+        tfidf_doc1.append(round(tf_doc1 * idf, 3))
+        tfidf_doc2.append(round(tf_doc2 * idf, 3))
+
+    # print(tfidf_doc1, tfidf_doc2)
+
+    tfidf_doc1 = sum(tfidf_doc1)
+    tfidf_doc2 = sum(tfidf_doc2)
+
+    # print(tfidf_doc1, tfidf_doc2)
+
+    if tfidf_doc1 == 0 or tfidf_doc2 == 0:
+
+        return 0
+
+    else:
+
+        return (tfidf_doc1 * tfidf_doc2) / (math.sqrt(tfidf_doc1**2) * math.sqrt(tfidf_doc2**2))
+
 
 # the argument must be fill in the command
 def main(argv):
