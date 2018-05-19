@@ -50,6 +50,8 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
     # if the stop list is existing, process it and create the hash table.
     if stoplist is not None:
 
+        filtered_terms = []
+
         stop_words = (' '.join(open(stoplist).readlines())).replace('\n', ' ').strip().split()
 
         hash_table_length = len(max(stop_words, key=len))
@@ -59,10 +61,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
         for stop_word in stop_words:
 
             stop_hash_table.add_node(stop_word, 0, False)
-
-    filtered_terms = []
-
-    if stoplist is not None:
 
         for term in search_terms:
 
@@ -80,33 +78,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
     inv_file = open(invlists, 'rb')
 
     # print('search terms ', search_terms)
-
-    for term in search_terms:
-
-        # calculate the index of term in lexicon hash table
-        index = len(term) % lexicon_table_length
-
-        # check hash table and find out if it is in the table
-        lexicon_hash_table.check_table(term, lexicon_hash_table.table[index])
-
-        if lexicon_hash_table.check_result is None:
-
-            print(term + ' cannot be found.')
-
-        else:
-
-            # if the term is found, print it out
-            # print('\n' + term)
-
-            # here get the term's index in lexicon, times 4 to get its real location in binary file
-            index_to_inv = int(lexicon_hash_table.check_result) * 4
-
-            inv_file.seek(index_to_inv)
-
-            # unpack the packed data in the binary file
-            quantity = struct.unpack('I', inv_file.read(4))[0]
-
-            # print(quantity)
 
     # print('total docs ', total_doc)
 
@@ -152,6 +123,7 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
                     doc_ft = invlist[index + 1]
                     doc_num = doc_hash_table.table[doc_index].index[0]
                     doc_len = int(doc_hash_table.table[doc_index].index[1])
+                    doc_weight = round(float(doc_hash_table.table[doc_index].index[2]), 3)
 
                     bm25_value = bm25_similarity(doc_table_length, quantity, doc_ft, doc_len, avg_doc_length)
 
@@ -199,13 +171,6 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
                     break
 
-    # test = [1,5,7,32,14,25,2323,43,68,0,889]
-    #
-    # for e in test:
-    #
-    #     minHeap.heap.append((str(e), e))
-    #     minHeap.minHeapify(minHeap.heap[len(minHeap.heap) - 1])
-
     result = []
 
     while len(minHeap.heap) > 0:
@@ -241,46 +206,37 @@ def search(model, query_label, num_results, lexicon, invlists, doc_map, stoplist
 
     elif model == '-MMR':
 
-        compare_docs = []
-        MMR_values = []
+        mmr_values = []
         first_doc = result.pop(0)
         final_result = [first_doc]
-        compared_docs = [first_doc]
-        MMR_print = []
+        mmr_print = []
 
+        print(result)
         while len(result) > 0:
 
-            compare_doc = result.pop(0)
+            for compare_doc in result:
 
-            compare_docs.append(compare_doc)
+                cos_similarity = max([cosine_similarity(compare_doc, doc) for doc in final_result])
 
-            cos_similarity = max([cosine_similarity(compare_doc, doc) for doc in compared_docs])
+                MMR_value = 0.7 * compare_doc[1] - 0.7 * cos_similarity
 
-            MMR_value = 0.7 * compare_doc[1] - 0.7 * cos_similarity
+                mmr_values.append(MMR_value)
 
-            MMR_values.append(MMR_value)
+            mmr_max = max(mmr_values)
 
-        while len(MMR_values) > 0:
+            max_index = mmr_values.index(mmr_max)
 
-            max_value = MMR_values[0]
+            mmr_print.append(mmr_max)
 
-            for value in MMR_values:
+            final_result.append(result.pop(max_index))
 
-                if max_value < value:
-
-                    max_value = value
-
-            max_index = MMR_values.index(max_value)
-
-            MMR_print.append(MMR_values.pop(max_index))
-
-            final_result.append(compare_docs.pop(max_index))
+            mmr_values = []
 
         for index in range(len(final_result)):
 
             print(str(query_label) + ' ' + final_result[index][0] +
                   ' ' + str(index + 1) + ' ' + str(final_result[index][1]) +
-                  ' ' + str(MMR_print[index-1] if index > 0 else 'N/A'))
+                  ' ' + str(mmr_print[index-1] if index > 0 else 'N/A'))
 
     elapsed_time = int(round(time.time() * 1000)) - start_time
 
